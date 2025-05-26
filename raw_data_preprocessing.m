@@ -151,5 +151,40 @@ B = 1.7e9;
 load("data\radar_data.mat");
 
 x = allData(1).data; % 8192x89 double (columns: fast time, rows: slow time)
+[N, L] = size(x);
+Nds = N * B/Fs;
 
-x1 = downsample(x(:,1), Fs, Fc, B);
+y = zeros(Nds+1, L);
+for l = 1:L
+    y(:, l) = downsample(x(:,l), Fs, Fc, B);
+end
+
+k1 = 1;
+k2 = 3;
+
+[U, S, V] = svd(y);
+
+U_DC = U(:, k1);
+S_DC = S(1:k1, 1:k1);
+V_DC = V(:, 1:k1).';
+X_DC = U_DC * S_DC * V_DC;
+
+U_VS = U(:, k1+1:k2);
+S_VS = S(k1+1:k2, k1+1:k2);
+V_VS = V(:, k1+1:k2).';
+X_VS = U_VS * S_VS * V_VS;
+
+U_N = U(:, k2+1:end);
+S_N = S(k2+1:end, k2+1:end);
+V_N = V(:, k2+1:end).';
+X_N = U_N * S_N * V_N;
+
+% Plotting
+figure;
+t = tiledlayout(1, 3);
+nexttile
+imagesc(abs(X_DC))
+nexttile
+imagesc(abs(X_VS))
+nexttile
+imagesc(abs(X_N))
