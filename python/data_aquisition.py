@@ -24,6 +24,12 @@ def init_walabot():
 
     # Calibrate
     wlbt.StartCalibration()
+    stat, prog = wlbt.GetStatus()
+    while stat == wlbt.STATUS_CALIBRATING and prog < 100:
+        wlbt.Trigger()
+        stat, prog = wlbt.GetStatus()
+        print(f"Calibrating {prog}%")
+    print("Calibration complete")
 
 
 def stop_walabot():
@@ -35,11 +41,11 @@ def stop_walabot():
 
 def get_raw_signals(antenna_pairs, N_st, N_ft):
     # initialize array for saving raw signals 
-    signals = np.zeros(len(antenna_pairs), N_st, N_ft) # shape: (40, 200, 8192) for all 40 antenna pairs and 200 slow time samples
+    signals = np.zeros((len(antenna_pairs), N_st, N_ft)) # shape: (40, 200, 8192) for all 40 antenna pairs and 200 slow time samples
 
     # start time for capturing measurement duration
     start = time.time()
-
+    index = 1
     for i in range(0, N_st):
         
         wlbt.Trigger()
@@ -52,8 +58,9 @@ def get_raw_signals(antenna_pairs, N_st, N_ft):
 
             signals[j, i, :] = amplitudes
 
-            print(f"Index {i+j} | Trigger: {i} | Pair {j} | TX: {tx}, RX: {rx} | Samples: {len(amplitudes)}")
-    
+            print(f"Index {index} | Trigger: {i} | Pair {j} | TX: {tx}, RX: {rx} | Samples: {len(amplitudes)}")
+            index +=1
+            
     # end time for capturing measurment duration
     end = time.time()
     
@@ -72,7 +79,7 @@ def save_signals(output_dir, filename, signals, F_st):
     os.makedirs(output_dir, exist_ok=True)
     
     # create file path
-    file_path = os.path.join(output_dir, filename, ".npz")
+    file_path = os.path.join(output_dir, f"{filename}.npz")
 
     np.savez(file_path, signals=signals, F_st=F_st)
 
@@ -81,7 +88,7 @@ def save_signals(output_dir, filename, signals, F_st):
 
 N_SLOW_TIME = 200
 N_FAST_TIME = 8192
-OUTPUT_DIR = "C:\Users\Michael\Projects\Projektseminar_Medizintechnik\Vital_Radar\data"
+OUTPUT_DIR = "C:\\Users\\Michael\\Projects\\Projektseminar_Medizintechnik\\Vital_Radar\\data"
 FILENAME = "radar_data_v2"
 
 
@@ -91,9 +98,10 @@ if __name__ == "__main__":
     
     # choose antenna pairs (here all)
     antenna_pairs = wlbt.GetAntennaPairs()
+    pair1 = [antenna_pairs[0], antenna_pairs[2]]
     
     # actual measurement
-    signals, F_st = get_raw_signals(antenna_pairs, N_SLOW_TIME, N_FAST_TIME)
+    signals, F_st = get_raw_signals(pair1, N_SLOW_TIME, N_FAST_TIME)
     
     # stop walabot
     stop_walabot()

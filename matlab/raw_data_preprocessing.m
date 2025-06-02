@@ -200,25 +200,22 @@ B = 1.7e9;
 K = 137;
 T = 10;
 
-load("data\radar_data.mat");
+load("C:\Users\Michael\Projects\Projektseminar_Medizintechnik\radar_dataset_DataPort\m0_radar.mat");
 
-x = allData(1).data; % 8192x89 double (columns: fast time, rows: slow time)
+x = data_radar.tx_1(:, :, 1);
 [N, L] = size(x);
 Nds = N * B/Fs;
 Ff = L / T;
-
-y = zeros(Nds+1, L);
-for l = 1:L
-    y(:, l) = downsample(x(:,l), Fs, Fc, B);
-end
 
 c = physconst('LightSpeed');
 dF = B / K;
 n = 4; 
 N = 137;
 
-d = (n * c) / (2 * N * dF)
+%d = (n * c) / (2 * N * dF)
 
-v = var(y(:, 1:45), 0, 2);
+x = x - movmean(x, 50, 2);
+
+v = var(x(:, 1:45), 0, 2);
 
 plot(v)

@@ -1,4 +1,6 @@
 import sys
+from collections import deque
+
 import numpy as np
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget,
@@ -9,6 +11,81 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 from scipy.interpolate import RegularGridInterpolator
 import WalabotAPI as wlbt
+
+
+# ----------------------------------------------
+# 1) Downsample‐to‐Radar‐Bandwidth Function
+# ----------------------------------------------
+def downsample(x, Fs, Fc, B):
+    """
+    Converts a fast‐time signal x_fast (1D array, length N) to baseband,
+    truncates to bandwidth B, then iDFT’s back. Matches the MATLAB logic:
+      y = downsample(x, Fs, Fc, B)
+    where:
+      - x_fast:  length‐N complex or real waveform (fast time)
+      - Fs:      fast‐time sampling frequency (e.g. 102.4e9)
+      - Fc:      carrier frequency (e.g. 7.15e9)
+      - B:       radar bandwidth (e.g. 1.7e9)
+    Returns
+      y_bb_ds:  length (M+1) complex waveform, where M = int(N * B/Fs)
+    """
+    N = len(x)
+    n = np.arange(N)
+
+    # 1) Downconvert to baseband
+    x_bb = x * np.exp(-1j * 2 * np.pi * Fc * n / Fs)
+
+    # 2) DFT of baseband signal
+    Xbb = np.fft.fft(x_bb)
+
+    # 3) Determine number of samples in radar‐bandwidth
+    M = int(np.round(N * B / Fs))  # → matches MATLAB: N * B/Fs exactly
+    half_M = M // 2
+
+    # 4) Truncate in frequency by centering and selecting M+1 bins
+    Xbb_shifted = np.fft.fftshift(Xbb)
+    center = N // 2
+    start = center - half_M
+    end = center + half_M + 1   # end is exclusive in Python slicing → yields M+1 points
+
+    Y = Xbb_shifted[start:end]  # length = M+1
+
+    # 6) iDFT and normalize
+    y_bb_ds = np.fft.ifft(Y) * (M + 1) / N
+
+    return y_bb_ds
+
+
+def mov(y, window_len):
+    """
+    Compute a centered moving average of length `window_len` along a 1D array y.
+
+    Parameters
+    ----------
+    y : array‐like, shape = (N,)
+        Input vector (1D).
+    window_len : int
+        The length of the moving‐average window (must be >= 1 and <= N).
+
+    Returns
+    -------
+    y_ma : np.ndarray, shape = (N,)
+        The moving‐averaged version of y, using mode='same' so that
+        output length matches input.
+    """
+    y = np.asarray(y, dtype=float)
+    N = y.shape[0]
+
+    if window_len < 1 or window_len > N:
+        raise ValueError("window_len must be between 1 and len(y)")
+
+    # 1D averaging kernel
+    kernel = np.ones(window_len) / window_len
+
+    # Convolve with mode='same' → centered window (edges ramp)
+    y_ma = np.convolve(y, kernel, mode="same")
+
+    return y_ma
 
 
 class CalibrationWorker(QThread):
@@ -32,19 +109,16 @@ class ImageDisplayWidget(QWidget):
         layout.addWidget(self.canvas)
         self.setLayout(layout)
         #self.ax.axis('off')
-        self.figure.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        self.figure.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
 
-    def update_image(self, image_array, marker_coords):
-        self.ax.clear()
-        #self.ax.axis('off')
-        self.figure.subplots_adjust(left=0, right=1, top=1, bottom=0)
-        self.ax.imshow(image_array, cmap='viridis', aspect='auto')
-        
-        if marker_coords is not None:
-            y_idx, z_idx = marker_coords
-            self.ax.plot(y_idx, z_idx, 'r+', markersize=12, markeredgewidth=2)  # red cross
-        
-        self.canvas.draw()
+    def update_image(self, data):
+        if data is not None:
+            self.ax.clear()
+            #self.ax.axis('off')
+            self.figure.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
+            self.ax.plot(data)
+            
+            self.canvas.draw()
 
 
 class MainWindow(QMainWindow):
@@ -82,6 +156,11 @@ class MainWindow(QMainWindow):
         self.radar_connected = False
         self.calibration_thread = None
 
+        # ──── Buffer for the last K fast‐time signals ────────────────────────────
+        self.buffer_len = 50
+        # Each entry in this deque will be a 1D array (the “y” from downsample).
+        self.signal_buffer = deque(maxlen=self.buffer_len)
+        
         self.setup_radar()
 
         self.timer = QTimer()
@@ -97,12 +176,8 @@ class MainWindow(QMainWindow):
             wlbt.ConnectAny()
             
             wlbt.SetProfile(wlbt.PROF_SENSOR)
-            wlbt.SetDynamicImageFilter(wlbt.FILTER_TYPE_DERIVATIVE)
-            wlbt.SetThreshold(35)
-            
-            wlbt.SetArenaR(1, 100, 2)
-            wlbt.SetArenaTheta(-20, 20, 10)
-            wlbt.SetArenaPhi(-45, 45, 2)
+            wlbt.SetDynamicImageFilter(wlbt.FILTER_TYPE_NONE)
+    
             wlbt.Start()
 
             self.update_status(True)
@@ -118,56 +193,30 @@ class MainWindow(QMainWindow):
         try:
             wlbt.Trigger()
             
-            targets = wlbt.GetSensorTargets()
-        
-            raw_image, _, _, _, _ = wlbt.GetRawImage()
-            raw_image = np.array(raw_image)  # shape (theta, phi, r)
-            shape = raw_image.shape
+            pairs = wlbt.GetAntennaPairs()
+            x,  time = wlbt.GetSignal(pairs[0])
+            x = np.array(x)
             
-            r_min, r_max, r_res = wlbt.GetArenaR()
-            phi_min, phi_max, phi_res = wlbt.GetArenaPhi()
-            theta_min, theta_max, theta_res = wlbt.GetArenaTheta()
+            Fs = 102.4e9   # fast‐time sampling freq
+            Fc = 7.15e9    # carrier freq
+            B  = 1.7e9     # radar bandwidth
+            y = downsample(x, Fs, Fc, B)
             
-            r = np.linspace(r_min, r_max, shape[2])
-            phi = np.linspace(phi_min, phi_max, shape[1])
-            theta = np.linspace(theta_min, theta_max, shape[0])
+            self.signal_buffer.append(y)
             
-            # Interpolator setup
-            interp = RegularGridInterpolator((theta, phi, r), raw_image, bounds_error=False, fill_value=0)
-
-            # Define a Cartesian grid (central slice in YZ plane, i.e., x ≈ 0)
-            num_points = 100
-            y = np.linspace(-r_max, r_max, num_points)
-            z = np.linspace(0, r_max, num_points)
-            Y, Z = np.meshgrid(y, z)
-            X = np.zeros_like(Y)
-
-            # Convert to spherical coordinates
-            r_cart = np.sqrt(X**2 + Y**2 + Z**2)
-            theta_cart = np.arccos(np.divide(X, r_cart, where=r_cart!=0))  # avoid divide by zero
-            phi_cart = np.arctan2(Y, Z)
-
-            # Stack for interpolation
-            coords = np.stack([theta_cart, phi_cart, r_cart], axis=-1)
-
-            # Interpolate
-            central_slice = interp(coords)
-
-            marker_coords = None
-            if targets:
-                target = targets[0]
-                y_target, z_target = target.yPosCm, target.zPosCm
-
-                y_idx = int((y_target - y[0]) / (y[-1] - y[0]) * (num_points - 1))
-                z_idx = int((z_target - z[0]) / (z[-1] - z[0]) * (num_points - 1))
-
-                y_idx = np.clip(y_idx, 0, num_points - 1)
-                z_idx = np.clip(z_idx, 0, num_points - 1)
-
-                marker_coords = (y_idx, z_idx)
+            norm_var = None
+            if len(self.signal_buffer) >= 2:
+                # stack into shape (buf_size, M+1)
+                arr = np.stack(self.signal_buffer, axis=0)   # dtype=complex
+                # variance along axis=0 (i.e. across the buffer), giving shape (M+1,)
+                # If you want to do variance on magnitude only, do np.abs(arr) first:
+                v = np.var(arr, axis=0, ddof=0)
+                E = np.mean(arr)
                 
+                norm_var = v / E
+            
             # Update GUI
-            self.image_widget.update_image(central_slice, marker_coords)
+            self.image_widget.update_image(norm_var)
         except Exception as e:
             print("Failed to retrieve radar data:", e)
             self.update_status(False)
