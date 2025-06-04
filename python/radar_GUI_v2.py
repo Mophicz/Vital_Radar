@@ -57,22 +57,6 @@ def downsample(x, Fs, Fc, B):
 
 
 def mov(y, window_len):
-    """
-    Compute a centered moving average of length `window_len` along a 1D array y.
-
-    Parameters
-    ----------
-    y : array‐like, shape = (N,)
-        Input vector (1D).
-    window_len : int
-        The length of the moving‐average window (must be >= 1 and <= N).
-
-    Returns
-    -------
-    y_ma : np.ndarray, shape = (N,)
-        The moving‐averaged version of y, using mode='same' so that
-        output length matches input.
-    """
     y = np.asarray(y, dtype=float)
     N = y.shape[0]
 
@@ -156,10 +140,9 @@ class MainWindow(QMainWindow):
         self.radar_connected = False
         self.calibration_thread = None
 
-        # ──── Buffer for the last K fast‐time signals ────────────────────────────
-        self.buffer_len = 50
-        # Each entry in this deque will be a 1D array (the “y” from downsample).
-        self.signal_buffer = deque(maxlen=self.buffer_len)
+        # ──── received signal matrix 's_l^rx(n, m)' containing (int) 'slow_time_N' past signals ────
+        self.slow_time_N = 50
+        self.s = deque(maxlen=self.slow_time_N)
         
         self.setup_radar()
 
@@ -185,38 +168,44 @@ class MainWindow(QMainWindow):
             print("Radar initialization failed:", e)
             self.update_status(False)
 
+    # ──── This part gets the signal and performs calculations ────
     def refresh_image(self):
-        if not self.radar_connected:
-            self.image_widget.update_image(np.zeros((100, 100)))
-            return
-
         try:
             wlbt.Trigger()
             
+            # call getSignal()
             pairs = wlbt.GetAntennaPairs()
-            x,  time = wlbt.GetSignal(pairs[0])
-            x = np.array(x)
+            x,  time = wlbt.GetSignal(pairs[0]) # i.e. pairs[0] is tx: 1 rx: 2
+            x = np.array(x) 
             
+            # 'x' is now equal to a single fast-time signal (1D array, dtype=double)
+            
+            # downconvert to baseband + downsample to number of frequency steps
             Fs = 102.4e9   # fast‐time sampling freq
             Fc = 7.15e9    # carrier freq
             B  = 1.7e9     # radar bandwidth
             y = downsample(x, Fs, Fc, B)
             
-            self.signal_buffer.append(y)
+            # 'y' is now equal to a downconverted single fast-time signal (1D array, dtype=complex double)
             
-            norm_var = None
-            if len(self.signal_buffer) >= 2:
-                # stack into shape (buf_size, M+1)
-                arr = np.stack(self.signal_buffer, axis=0)   # dtype=complex
-                # variance along axis=0 (i.e. across the buffer), giving shape (M+1,)
-                # If you want to do variance on magnitude only, do np.abs(arr) first:
+            # save current signal to signal matrix
+            self.s.append(y)
+            
+            # 's' is now a deque with the last 50 'y's
+            
+            # compute slow-time variance of 's'
+            var = None
+            if len(self.s) >= 2:
+                # stack (deque) 's' to a numpy array
+                arr = np.stack(self.s, axis=0)
+                # variance along axis=0 (i.e. across 's')
                 v = np.var(arr, axis=0, ddof=0)
                 E = np.mean(arr)
                 
-                norm_var = v / E
+                var = v / E
             
             # Update GUI
-            self.image_widget.update_image(norm_var)
+            self.image_widget.update_image(var)
         except Exception as e:
             print("Failed to retrieve radar data:", e)
             self.update_status(False)
