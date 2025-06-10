@@ -1,19 +1,25 @@
+from collections import deque
+
 from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel
 from PyQt6.QtCore import QTimer, Qt
-from collections import deque
-import numpy as np
 
 from vital_radar.gui.widgets.image_display import ImageDisplayWidget
 from vital_radar.walabot.connection import init_radar, stop_radar, reconnect_radar
 from vital_radar.walabot.calibration import CalibrationWorker
-from vital_radar.processing.downsampling import downsample
+from vital_radar.processing.raw_signal_processing import process_raw_signal
+from vital_radar.processing.distance_estimation import slowVar
+
 
 class MainWindow(QMainWindow):
+    """
+    Defines the main window for the radar GUI.
+    
+    """
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Live Radar Image Feed")
 
-        # main window
+        # background
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout()
@@ -45,7 +51,7 @@ class MainWindow(QMainWindow):
         
         # signal matrix s
         self.slow_time_N = 50 # slow-time length
-        self.s = deque(maxlen=self.slow_time_N) # use deque collection to keep matrix dim constant (FIFO)
+        self.s = deque(maxlen=self.slow_time_N) # use deque collection to keep matrix dimension constant (FIFO)
 
         # use walabot API to connect radar
         try:
@@ -55,10 +61,10 @@ class MainWindow(QMainWindow):
             print("Radar initialization failed:", e)
             self.update_status(False)
 
-        # sampling rate for GUI
+        # refresh rate for GUI
         self.timer = QTimer()
         self.timer.timeout.connect(self.refresh_image)
-        self.timer.start(100)
+        self.timer.start(100) # ms
 
     def refresh_image(self):
         # if no radar is connected calling API functions will return an error, so skip
@@ -74,38 +80,12 @@ class MainWindow(QMainWindow):
             
             # get signals from the receive antennas
             x, _ = wlbt.GetSignal(pairs[0]) # example with one antenna pair
+      
+            # append signal to signal matrix (also removes oldest signal if full)
+            self.s.append(process_raw_signal(x))
             
-            #-------------------------------------------------------------
-            # TODO: move this part to a separat function in processing.py
-            
-            # convert to numpy array
-            x = np.array(x)
-            
-            Fs = 102.4e9 # smapling frequency
-            Fc = 7.15e9 # carrier frequency
-            B = 1.7e9 # bandwidth
-            
-            # downconvert to baseband and downsample to number of distinct frequency steps
-            y = downsample(x, Fs, Fc, B)
-            
-            # add to signal matrix (and consequenty remove the oldest entry if full)
-            self.s.append(y)
-            #-------------------------------------------------------------
-            
-            #-------------------------------------------------------------
-            # TODO: move this part to a separat function in processing.py
-            
-            # calculate slow-time variance of the signal matrix
-            var = None
-            if len(self.s) >= 2:
-                # since s is a deque collection, the entries need to be stacked to a single array first
-                arr = np.stack(self.s, axis=0)
-                # get variance along slow-time axis
-                v = np.var(arr, axis=0, ddof=0)
-                # normalize by dividing by expectation
-                E = np.mean(arr)
-                var = v / E
-            #-------------------------------------------------------------
+            # get slow-time variance
+            var = slowVar(self.s)
             
             # update plot
             self.image_widget.update_image(var)
@@ -146,3 +126,4 @@ class MainWindow(QMainWindow):
         self.timer.stop()
         stop_radar()
         event.accept()
+        
