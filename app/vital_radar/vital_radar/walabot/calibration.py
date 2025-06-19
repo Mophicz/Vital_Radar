@@ -1,6 +1,7 @@
 from PyQt6.QtCore import QThread
 import WalabotAPI as wlbt
 
+
 class CalibrationWorker(QThread):
     def run(self):
         wlbt.StartCalibration()
@@ -11,3 +12,4 @@ class CalibrationWorker(QThread):
             print(f"Calibrating {prog}%")
             self.msleep(100)
         print("Calibration complete")
+        

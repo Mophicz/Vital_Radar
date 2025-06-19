@@ -1,6 +1,7 @@
 import WalabotAPI as wlbt
 
-def init_radar():
+
+def initRadar():
     """
     Initialize and start Walabot. 
     Raises an exception if anything fails.
@@ -13,7 +14,8 @@ def init_radar():
     wlbt.Start()
     return True 
 
-def stop_radar():
+
+def stopRadar():
     """
     Stop and disconnect from Walabot. If something
     is already stopped, it will just pass.
@@ -27,11 +29,12 @@ def stop_radar():
         wlbt.Clean()
     return True
 
-def reconnect_radar():
+
+def reconnectRadar():
     """
     A convenience function that does stop_radar()
     then init_radar(). You can also catch exceptions
     and return a boolean.
     """
-    stop_radar()
-    return init_radar()
+    stopRadar()
+    return initRadar()
