@@ -1,4 +1,4 @@
-import sys, os
+import os, sys
 
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QFile, QTextStream
@@ -7,7 +7,7 @@ from PyQt6 import QtGui
 from vital_radar.gui.main_window import MainWindow
 
 
-# get base directory of this script
+# get base directory of this script to build paths
 if getattr(sys, "frozen", False):
     basedir = sys._MEIPASS
 else:
@@ -18,7 +18,7 @@ ICON_PATH = os.path.join(basedir, "vital_radar", "gui", "resources", "vital_rada
 STYLE_PATH = os.path.join(basedir, "vital_radar", "gui", "resources", "style.qss")
 
 
-def load_stylesheet(app: QApplication):
+def loadStylesheet(app: QApplication):
     """
     Loads a file with the style formatting for the GUI windows and applies it to a given QApplication.
     
@@ -44,13 +44,13 @@ def main():
     app.setWindowIcon(QtGui.QIcon(ICON_PATH))
     
     # load the custom styles
-    load_stylesheet(app)
+    loadStylesheet(app)
     
     # create an instance of MainWindow()
     window = MainWindow()
     
     # set custom window dimensions
-    window.resize(600, 600)
+    window.resize(1280, 800)
     
     # open the window
     window.show()
