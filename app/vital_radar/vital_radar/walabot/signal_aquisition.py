@@ -40,7 +40,7 @@ def updateTriggerFreq(alpha=0.3, _state={'last': None, 'ema_dt': None}):
     trigger_freq = (1.0/avg) if (avg is not None and avg > 0) else float('nan')
 
 
-def getSignals(desired_tx, desired_rx):
+def getSignals(tx_list, rx_list):
     """
     Triggers the radar and retrieves signal matrix for given TX/RX antenna combinations.
 
@@ -56,8 +56,8 @@ def getSignals(desired_tx, desired_rx):
         pairs = wlbt.GetAntennaPairs()
         signals = None
 
-        for tx in desired_tx:
-            for rx in desired_rx:
+        for tx in tx_list:
+            for rx in rx_list:
                 pair = next((p for p in pairs if p.txAntenna == tx and p.rxAntenna == rx), None)
                 if pair is not None:
                     signal, _ = wlbt.GetSignal(pair)
@@ -68,6 +68,7 @@ def getSignals(desired_tx, desired_rx):
                         signals = np.concatenate((signals, signal[:, np.newaxis]), axis=1)
 
         return signals
+    
     except Exception as e:
         print("Failed to get signal matrix:", e)
         return None
