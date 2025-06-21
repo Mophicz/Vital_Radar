@@ -32,3 +32,33 @@ QLabel[status="connected"] {
 QLabel[status="disconnected"] {
     color: #f44336;
 }
+
+/* checkboxes */
+QCheckBox {
+    spacing: 4px;          
+    font-size: 12px;            
+    color: #dcdcdc;              
+}
+
+QCheckBox::indicator {
+    width: 16px;                
+    height: 16px;
+    border-radius: 3px;          
+}
+
+/* unchecked state */
+QCheckBox::indicator:unchecked {
+    border: 1px solid #dcdcdc;
+    background-color: transparent;
+}
+
+/* hovered */
+QCheckBox::indicator:hover {
+    border-color: #0078d7;
+}
+
+/* checked state */
+QCheckBox::indicator:checked {
+    border: 1px solid #0078d7;
+    background-color: #0078d7;
+}
