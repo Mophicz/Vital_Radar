@@ -24,36 +24,36 @@ def threshhold(x, threshhold):
         return x
     
 
-def slowVar(s, threshhold):
+def slowVar(signal_matrix):
     """
     Calculates the slow-time variance of a signal matrix
 
     """
     # calculate slow-time variance of the signal matrix
     var = None
-    d = None
     
-    if len(s) >= 2:
-        # since s is a deque collection, the entries need to be stacked to an array first
-        arr = getStack(s)
+    if len(signal_matrix) >= 2:
+        # power
+        signal_matrix = np.abs(signal_matrix) ** 2
         
         # get variance along slow-time axis
-        v = np.var(arr, axis=0, ddof=0)
+        v = np.var(signal_matrix, axis=0, ddof=0)
         
         # normalize by dividing by expectation
-        E = np.mean(arr)
-        var = v / E
+        E = np.mean(signal_matrix)
+        var = v / (E + 1e-12)
         
         # sum the variances of the different antennas
         var = np.sum(var, axis=1)
+        
+        var = var / (np.max(var) + 1e-12)
+        
+    return var
 
-        # apply threshhold
-        var = threshhold(var, threshhold)
+
+def distance(var):
+    # find the sample (frequency) bin with the highest variance
+    idx = np.argmax(var)
         
-        # find the sample (frequency) bin with the highest variance
-        idx = np.argmax(var)
-        
-        # convert sample (frequency) bin to range bin
-        d = sample2range(idx)
-        
-    return var, d
+    # convert sample (frequency) bin to range bin
+    return sample2range(idx)
