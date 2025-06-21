@@ -45,6 +45,22 @@ def downsample(x):
     y_downsampled = np.fft.ifft(Y_truncated, axis=0) * (M + 1) / N   
     return y_downsampled
 
+
+def downsample_raw(x, factor):
+    """
+    Simple downsampling of the raw RF signal by integer factor, without downconversion.
+    Keeps every nth sample to reduce resolution and computational load.
+    Handles both 1D and 2D input.
+    """
+    x = np.array(x)
+    if x.ndim == 1:
+        return x[::factor]
+    elif x.ndim == 2:
+        return x[::factor, :]
+    else:
+        raise ValueError("Input must be 1D or 2D array")
+    
+    
 def processRawSignal(x):
     """
     Processes raw signals (multiple in columns) from the Walabot API to numpy array,
