@@ -1,11 +1,9 @@
 import numpy as np
 
-from vital_radar.processing.utils import getStack
-
 
 # constants
-from scipy.constants import c # lightspeed
-B = 1.7e9      # bandwidth
+from scipy.constants import c 
+B = 1.7e9      
 
 
 def sample2range(n):

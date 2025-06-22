@@ -1,9 +1,11 @@
 import numpy as np
 
+
 # constants
 FS = 102.4e9  # sampling frequency
 FC = 7.15e9    # carrier frequency
 B = 1.7e9      # bandwidth
+
 
 def downconvert(x):
     """
@@ -17,6 +19,7 @@ def downconvert(x):
     
     x_baseband = x * carrier
     return x_baseband
+
 
 def downsample(x):
     """

@@ -34,7 +34,7 @@ def updateTriggerFreq(alpha=0.3, _state={'last': None, 'ema_dt': None}):
     _state['last'] = now
 
     # compute frequency as reciprocal of time difference
-    avg = _state['avg_dt']
+    avg = _state['ema_dt']
     
     # update trigger frequency
     trigger_freq = (1.0/avg) if (avg is not None and avg > 0) else float('nan')

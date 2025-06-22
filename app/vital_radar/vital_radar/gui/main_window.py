@@ -32,7 +32,7 @@ class MainWindow(QMainWindow):
         self.main_layout = QVBoxLayout(central_widget)
 
         # plot area
-        self.image_widget = self._build_plot_area()
+        self.image_widget = self._buildPlotArea()
         self.main_layout.addWidget(self.image_widget)
 
         # status label
@@ -43,12 +43,12 @@ class MainWindow(QMainWindow):
         self.freq_value.setFont(QFont("Courier New"))
         
         # radar control area
-        self.main_layout.addWidget(self._build_control_area())
+        self.main_layout.addWidget(self._buildControlArea())
 
         # antenna matrix area
         self.matrix = AntennaMatrix(tx_to_rx)
         self.main_layout.addWidget(self.matrix, alignment=Qt.AlignmentFlag.AlignCenter)
-        self.matrix.selectionChanged.connect(self.on_matrix_change)
+        self.matrix.selectionChanged.connect(self.onMatrixChange)
         self.selected_pairs: set[tuple[int,int]] = set()
         
         # radar and buffer
@@ -76,16 +76,19 @@ class MainWindow(QMainWindow):
         This function is called repeatedtly as long as the GUI is running and updates the displayed image.
         
         """
-        # if no radar is connected calling API functions will return an error, so skip
+        # if no radar is connected use dummy data instead
         if not self.radar_connected:
+            if not self.selected_pairs:
+                return
+            
             signals = next(self.dummy_signal_generator)
             
             # update trigger frequency GUI label
             self.freq_value.setText(f"--.-")
         else:
             if not self.selected_pairs:
-                self.signal_buffer.popleft()
-                return
+                if self.signal_buffer:
+                    self.signal_buffer.popleft()
             else:
                 tx_list = sorted({tx for tx, _ in self.selected_pairs})
                 rx_list = sorted({rx for _, rx in self.selected_pairs})
@@ -110,7 +113,7 @@ class MainWindow(QMainWindow):
         signal_matrix = getStack(self.signal_buffer)
         
         # compute plot data
-        plot_data = computePlotData(signal_matrix, self.current_display_mode)
+        plot_data = computePlotData(signal_matrix, self.current_display_mode, self.selected_pairs)
         
         # update plot
         self.image_widget.updateImage(plot_data, self.current_display_mode)
@@ -167,8 +170,9 @@ class MainWindow(QMainWindow):
         """
         self.current_display_mode = self.mode_combo.currentData()
         self.signal_buffer.clear()
+        self.image_widget.clear(self.current_display_mode)
         
-    def on_matrix_change(self, tx: int, rx: int, checked: bool):
+    def onMatrixChange(self, tx: int, rx: int, checked: bool):
         """
         Connected to checkbox check.
         
@@ -179,8 +183,9 @@ class MainWindow(QMainWindow):
             self.selected_pairs.discard((tx, rx))
             
         self.signal_buffer.clear()
+        self.image_widget.clear(self.current_display_mode)
     
-    def _build_plot_area(self):
+    def _buildPlotArea(self):
         """
         Returns the widget containing the radar image.
         
@@ -188,7 +193,7 @@ class MainWindow(QMainWindow):
         image_w = ImageDisplayWidget()
         return image_w
     
-    def _build_control_area(self):
+    def _buildControlArea(self):
         """
         Returns a QWidget with all buttons and labels laid out.
         
@@ -198,8 +203,8 @@ class MainWindow(QMainWindow):
         hbox.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
         # buttons (left)
-        hbox.addWidget(self._build_button("Calibrate", self.calibrateRadar))
-        hbox.addWidget(self._build_button("Reconnect", self.reconnectRadar))
+        hbox.addWidget(self._buildButton("Calibrate", self.calibrateRadar))
+        hbox.addWidget(self._buildButton("Reconnect", self.reconnectRadar))
 
         # add gap 
         hbox.addStretch()
@@ -229,7 +234,7 @@ class MainWindow(QMainWindow):
 
         return container
     
-    def _build_button(self, text, slot):
+    def _buildButton(self, text, slot):
         """
         Returns a button widget and connects it to a slot.
         
