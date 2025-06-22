@@ -37,7 +37,7 @@ class ImageDisplayWidget(QWidget):
         self.figure.clear()
         
         if data is None:
-            data = np.zeros(1)
+            data = np.zeros(100)
         
         match display_mode:
             case DisplayMode.RAW:

@@ -74,31 +74,20 @@ class MainWindow(QMainWindow):
     def refreshImage(self):
         """
         This function is called repeatedtly as long as the GUI is running and updates the displayed image.
-        
         """
+        
+        if not self.selected_pairs:
+            return
+        
         # if no radar is connected use dummy data instead
         if not self.radar_connected:
-            if not self.selected_pairs:
-                return
-            
             signals = next(self.dummy_signal_generator)
-            
-            # update trigger frequency GUI label
             self.freq_value.setText(f"--.-")
         else:
-            if not self.selected_pairs:
-                if self.signal_buffer:
-                    self.signal_buffer.popleft()
-            else:
-                tx_list = sorted({tx for tx, _ in self.selected_pairs})
-                rx_list = sorted({rx for _, rx in self.selected_pairs})
-            
             # get the signals from the walabot API
-            signals = sa.getSignals(tx_list, rx_list)
-            
-            # update trigger frequency GUI label
+            signals = sa.getSignals(self.selected_pairs)
             self.freq_value.setText(f"{sa.trigger_freq:04.1f}")
-        
+
         # for RAW dislplay mode the signals arent processed
         if self.current_display_mode == DisplayMode.RAW:
             signals = downsample_raw(signals, 10)
@@ -108,13 +97,13 @@ class MainWindow(QMainWindow):
 
         # append signals to signal buffer
         self.signal_buffer.append(signals)
-        
+
         # convert buffer to matrix
         signal_matrix = getStack(self.signal_buffer)
-        
+
         # compute plot data
         plot_data = computePlotData(signal_matrix, self.current_display_mode, self.selected_pairs)
-        
+
         # update plot
         self.image_widget.updateImage(plot_data, self.current_display_mode)
         
