@@ -27,13 +27,12 @@ def slowVar(signal_matrix):
     Calculates the slow-time variance of a signal matrix
 
     """
+    signal_matrix = signal_matrix[-50:, :, :] 
+    
     # calculate slow-time variance of the signal matrix
     var = None
     
     if len(signal_matrix) >= 2:
-        # power
-        signal_matrix = np.abs(signal_matrix) ** 2
-        
         # get variance along slow-time axis
         v = np.var(signal_matrix, axis=0, ddof=0)
         

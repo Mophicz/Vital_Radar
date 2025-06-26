@@ -5,7 +5,9 @@ import numpy as np
 
 from vital_radar.processing.distance_estimation import sample2range
 from vital_radar.processing.display_modes import DisplayMode
-from vital_radar.walabot.signal_aquisition import trigger_freq
+from vital_radar.processing.utils import moving_average
+from vital_radar.processing.spectrum_estimation import getWelch
+import vital_radar.walabot.signal_aquisition as sa
 
 
 class ImageDisplayWidget(QWidget):
@@ -96,7 +98,7 @@ class ImageDisplayWidget(QWidget):
         end = int(np.ceil(x.max()))
         peak_idx = np.argmax(data)
         peak_range = x[peak_idx]
-        ax.plot(x, data)
+        ax.plot(x, np.abs(data)**2)
         ax.set_xlabel('Range (m)')
         ticks = [0, peak_range, end]
         labels = ['0', f'{peak_range:.2f}', str(end)]
@@ -112,51 +114,41 @@ class ImageDisplayWidget(QWidget):
         ax.legend()
 
     def _plotBreathing(self, ax_time, ax_psd, data):
-        # Determine pulse repetition interval (PRT)
-        if not np.isfinite(trigger_freq):
-            PRT = 1.0
-        else:
-            PRT = 1.0 / trigger_freq
-
-        # Prepare slow-time signal
+        fs = sa.trigger_freq
+        
+        # handle cases when trigger_freq is NaN
+        if not np.isfinite(fs):
+            fs = 1
+            
+        if len(data) < 9:
+            return
+        
+        # remove DC content
         y = data - np.mean(data)
 
-        # Normalize time-domain signal to its peak
-        peak_y = np.max(np.abs(y))
-        if peak_y > 0:
-            y_norm = y / peak_y
-        else:
-            y_norm = y
+        # apply moving average
+        y_smooth = moving_average(y, 10)
 
         # FFT & PSD
-        P = np.abs(np.fft.rfft(y_norm * np.hanning(len(y))))**2
-        # Normalize PSD to its peak
-        peak_P = np.max(P)
-        if peak_P > 0:
-            P_norm = P / peak_P
-        else:
-            P_norm = P
+        f, P = getWelch(y_smooth, fs)
 
-        f = np.fft.rfftfreq(len(data), d=PRT)
-        t = np.arange(-len(data)* PRT, 0, 1)
+        k = np.arange(-len(y_smooth), 0, 1)
 
-        # Plot time-domain signal (normalized)
-        ax_time.plot(t, y_norm, lw=1)
+        # Plot time-domain signal
+        ax_time.plot(k, y_smooth)
         
         ax_time.set_title('Beamformed Slow-Time Signal')
         
-        ax_time.set_xlabel('Time (s)')
+        ax_time.set_xlabel('Sample (k)')
         
-        ax_time.set_ylabel('Normalized Amplitude')
-        ax_time.set_ylim(-1.05, 1.05)
+        ax_time.set_ylabel('Amplitude')
 
         # Plot frequency-domain PSD (normalized)
-        ax_psd.plot(f, P_norm, lw=1)
+        ax_psd.semilogy(f, P)
         
         ax_psd.set_title('PSD')
         
         ax_psd.set_xlabel('Frequency (Hz)')
-        ax_psd.set_xlim(-0.05, 1.05)
+        ax_psd.set_xlim(-0.05, 1.55)
         
-        ax_psd.set_ylabel('Normalized Power')
-        ax_psd.set_ylim(0, 1.05)
+        ax_psd.set_ylabel('Logarithmic PSD')

@@ -46,13 +46,22 @@ def computePlotData(signal_matrix, display_mode, pairs=None):
             d = distance(var)
             
             # construct beamforming target from the distance
-            target = np.array([0, 0, d])
+            r1 = np.array([0, 0, d])
+            r2 = np.array([5, 5, d])
+            r3 = np.array([5, -5, d])
+            r4 = np.array([-5, 5, d])
+            r5 = np.array([-5, -5, d])
             
             # apply beamformer
-            B = bf.beamform(signal_matrix, target)
+            B1 = bf.beamform(signal_matrix, r1)
+            B2 = bf.beamform(signal_matrix, r2)
+            B3 = bf.beamform(signal_matrix, r3)
+            B4 = bf.beamform(signal_matrix, r4)
+            B5 = bf.beamform(signal_matrix, r5)
+            B = B1 + B2 + B3 + B4 + B5
             
             # collapse to slow-time
-            x = np.abs(B).sum(axis=1)   # → shape (T,)
+            x = np.abs(B).sum(axis=1)
     
             return x
         

@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.ndimage import uniform_filter1d
 
 
 # constants
@@ -34,3 +35,18 @@ def dummy_signal_generator(freq=0.1, shape=(8192, 4)):
             
         signal = noise + phase
         yield signal
+
+
+def moving_average(signal_matrix, window_size):
+    """
+    Applys a moving average to signal matrix along slow-time
+  
+    """
+    # smooth along slow-time
+    smoothed = uniform_filter1d(
+        signal_matrix,
+        size=window_size,
+        axis=0,
+        mode='nearest'
+    )
+    return smoothed

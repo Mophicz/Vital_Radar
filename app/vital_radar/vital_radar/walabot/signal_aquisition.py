@@ -7,7 +7,7 @@ import WalabotAPI as wlbt
 trigger_freq = float('nan')
 
 
-def updateTriggerFreq(alpha=0.3, _state={'last': None, 'ema_dt': None}):
+def updateTriggerFreq(alpha=0.1, _state={'last': None, 'ema_dt': None}):
     """
     Memory for 1) latest trigger time and 2) Exponential Moving Average (EMA) of time difference between triggers. 
     Updates module level state 'trigger_freq' with the EMA trigger‐frequency in Hz if called once per 'wlbt.Trigger()'.

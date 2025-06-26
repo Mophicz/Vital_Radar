@@ -53,7 +53,7 @@ class MainWindow(QMainWindow):
         
         # radar and buffer
         self.radar_connected = False
-        self.slow_time_N = 50
+        self.slow_time_N = 100
         self.signal_buffer = deque(maxlen=self.slow_time_N)
         
         self.dummy_signal_generator = dummy_signal_generator()
@@ -66,6 +66,8 @@ class MainWindow(QMainWindow):
             print("Radar initialization failed:", e)
             self.updateStatus(False)
 
+        self.calibration_thread = None
+        
         # GUI refresh timer
         self.timer = QTimer()
         self.timer.timeout.connect(self.refreshImage)
@@ -74,8 +76,7 @@ class MainWindow(QMainWindow):
     def refreshImage(self):
         """
         This function is called repeatedtly as long as the GUI is running and updates the displayed image.
-        """
-        
+        """      
         if not self.selected_pairs:
             return
         
@@ -94,7 +95,7 @@ class MainWindow(QMainWindow):
         else:
             # for all other modes the IQ signals are used
             signals = processRawSignal(signals)
-
+        
         # append signals to signal buffer
         self.signal_buffer.append(signals)
 

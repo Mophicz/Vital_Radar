@@ -1,5 +1,7 @@
 import numpy as np
 
+from vital_radar.processing.utils import moving_average
+
 
 # constants
 FS = 102.4e9  # sampling frequency
@@ -72,4 +74,4 @@ def processRawSignal(x):
     x = np.array(x)
     x_bb = downconvert(x)
     x_ds = downsample(x_bb)
-    return x_ds
+    return moving_average(x_ds, 10)
