@@ -73,6 +73,6 @@ def getSignals(pairs_list):
         return signals
     
     except Exception as e:
-        print("Failed to get signal matrix:", e)
+        print("", e)
         return None
     
