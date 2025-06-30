@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import (
     QWidget, QGridLayout, QLabel, QCheckBox, QSizePolicy, QLayout
 )
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 
 
 tx_to_rx = {
@@ -75,3 +75,20 @@ class AntennaMatrix(QWidget):
 
     def is_checked(self, tx: int, rx: int) -> bool:
         return self._checkboxes.get((tx, rx), QCheckBox()).isChecked()
+
+    def apply_defaults(self, defaults: list[tuple[int,int]]):
+        """
+        Simulate a user-click on each default pair so that
+        - the checkbox is checked
+        - both toggled() and clicked() signals fire
+        - your selectionChanged → onMatrixChange logic runs exactly as for a real click
+        """
+        # We use a singleShot(0) so this happens *after* the widget is fully set up
+        QTimer.singleShot(0, lambda: self._click_defaults(defaults))
+
+    def _click_defaults(self, defaults):
+        for tx, rx in defaults:
+            cb = self._checkboxes.get((tx, rx))
+            if cb and not cb.isChecked():
+                cb.click()    # ← this is the magic: emits clicked() then toggled()
+                

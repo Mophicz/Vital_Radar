@@ -34,16 +34,10 @@ def slowVar(signal_matrix):
     
     if len(signal_matrix) >= 2:
         # get variance along slow-time axis
-        v = np.var(signal_matrix, axis=0, ddof=0)
-        
-        # normalize by dividing by expectation
-        E = np.mean(signal_matrix)
-        var = v / (E + 1e-12)
+        var = np.var(signal_matrix, axis=0, ddof=0)
         
         # sum the variances of the different antennas
         var = np.sum(var, axis=1)
-        
-        var = var / (np.max(var) + 1e-12)
         
     return var
 

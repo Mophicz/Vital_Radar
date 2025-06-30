@@ -6,7 +6,7 @@ import numpy as np
 from vital_radar.processing.distance_estimation import sample2range
 from vital_radar.processing.display_modes import DisplayMode
 from vital_radar.processing.utils import moving_average
-from vital_radar.processing.spectrum_estimation import getWelch
+from vital_radar.processing.spectrum_estimation import getWelch, getARpsd, bandpassFilter
 import vital_radar.walabot.signal_aquisition as sa
 
 
@@ -106,7 +106,7 @@ class ImageDisplayWidget(QWidget):
         ax.set_xticklabels(labels)
         ax.set_xlim(0, end)
         ax.set_ylabel('Normalized slow time variance')
-        ax.set_ylim(0, 1)
+        #ax.set_ylim(0, 1)
         ax.axvline(peak_range, color='red', linestyle='--', label='Peak distance')
         for tick_val, tick_label in zip(ax.get_xticks(), ax.get_xticklabels()):
             if np.isclose(tick_val, peak_range):
@@ -125,12 +125,13 @@ class ImageDisplayWidget(QWidget):
         
         # remove DC content
         y = data - np.mean(data)
-
+        
         # apply moving average
-        y_smooth = moving_average(y, 10)
+        y_smooth = moving_average(y, 20)
 
         # FFT & PSD
         f, P = getWelch(y_smooth, fs)
+        #f, P = getARpsd(y_smooth, fs)
 
         k = np.arange(-len(y_smooth), 0, 1)
 
@@ -152,3 +153,6 @@ class ImageDisplayWidget(QWidget):
         ax_psd.set_xlim(-0.05, 1.55)
         
         ax_psd.set_ylabel('Logarithmic PSD')
+
+        ax_psd.axvline(0.2, color='red', linestyle='--', label='Expected Breathing Range')
+        ax_psd.axvline(0.3, color='red', linestyle='--')
