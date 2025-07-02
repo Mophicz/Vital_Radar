@@ -1,9 +1,9 @@
 from collections import deque
-import queue
 
 from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox
-from PyQt6.QtCore import QTimer, Qt, QObject, QThread, pyqtSignal
+from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtGui import QFont, QFontMetrics
+import numpy as np
 
 from vital_radar.gui.widgets.image_display import ImageDisplayWidget
 from vital_radar.gui.widgets.antenna_matrix import AntennaMatrix, tx_to_rx
@@ -13,24 +13,6 @@ import vital_radar.walabot.signal_aquisition as sa
 from vital_radar.processing.display_modes import DisplayMode, computePlotData
 from vital_radar.processing.raw_signal_processing import processRawSignal, downsample_raw
 from vital_radar.processing.utils import getStack, dummy_signal_generator
-
-
-class AcquisitionWorker(QObject):
-    dataReady = pyqtSignal(object)  # broadcasts raw signals
-    def __init__(self, selected_pairs):
-        super().__init__()
-        self.selected_pairs = selected_pairs
-        self._running = True
-
-    def run(self):
-        while self._running:
-            # get raw data as fast as possible
-            raw = sa.getSignals(self.selected_pairs)
-            self.dataReady.emit(raw)
-            # no blocking processing here!
-
-    def stop(self):
-        self._running = False
         
 
 class MainWindow(QMainWindow):
@@ -75,8 +57,9 @@ class MainWindow(QMainWindow):
         
         # radar and buffer
         self.radar_connected = False
-        self.slow_time_N = 50
-        self.signal_buffer = deque(maxlen=self.slow_time_N)
+        self.slow_time_N = 100
+        self.signal_buffer = deque(maxlen=10)
+        self.avg_signal_buffer = deque(maxlen=self.slow_time_N)
         
         self.dummy_signal_generator = dummy_signal_generator()
 
@@ -90,41 +73,15 @@ class MainWindow(QMainWindow):
 
         self.calibration_thread = None
         
-        ##### set up the acquisition thread
-        self.raw_queue = queue.Queue(maxsize=50)
-
-        self.acq_thread = QThread(self)
-        self.acq_worker = AcquisitionWorker(self.selected_pairs)
-        self.acq_worker.moveToThread(self.acq_thread)
-        self.acq_worker.dataReady.connect(self.enqueueRaw)
-        self.acq_thread.started.connect(self.acq_worker.run)
-        self.acq_thread.start()
-        
         # GUI refresh timer
         self.timer = QTimer()
         self.timer.timeout.connect(self.refreshImage)
         self.timer.start(100)
     
-    def enqueueRaw(self, raw):
-        try:
-            # drop oldest if full
-            if self.raw_queue.full():
-                _ = self.raw_queue.get_nowait()
-            self.raw_queue.put_nowait(raw)
-        except queue.Full:
-            pass
-    
     def refreshImage(self):
         """
         This function is called repeatedtly as long as the GUI is running and updates the displayed image.
         """  
-        try:
-            # grab the newest frame, discard any earlier ones
-            raw = self.raw_queue.get_nowait()
-            while not self.raw_queue.empty():
-                raw = self.raw_queue.get_nowait()
-        except queue.Empty:
-            return
             
         if not self.selected_pairs:
             return
@@ -148,8 +105,11 @@ class MainWindow(QMainWindow):
         # append signals to signal buffer
         self.signal_buffer.append(signals)
 
+        avg_signal = np.mean(self.signal_buffer, axis=0)
+        self.avg_signal_buffer.append(avg_signal)
+        
         # convert buffer to matrix
-        signal_matrix = getStack(self.signal_buffer)
+        signal_matrix = getStack(self.avg_signal_buffer)
 
         # compute plot data
         plot_data = computePlotData(signal_matrix, self.current_display_mode, self.selected_pairs)
@@ -169,6 +129,9 @@ class MainWindow(QMainWindow):
         if self.calibration_thread is None or not self.calibration_thread.isRunning():
             self.calibration_thread = CalibrationWorker()
             self.calibration_thread.start()
+            
+        self.signal_buffer.clear()
+        self.avg_signal_buffer.clear()
 
     def reconnectRadar(self):
         """
@@ -209,6 +172,7 @@ class MainWindow(QMainWindow):
         """
         self.current_display_mode = self.mode_combo.currentData()
         self.signal_buffer.clear()
+        self.avg_signal_buffer.clear()
         self.image_widget.clear(self.current_display_mode)
         
     def onMatrixChange(self, tx: int, rx: int, checked: bool):
@@ -222,6 +186,7 @@ class MainWindow(QMainWindow):
             self.selected_pairs.discard((tx, rx))
             
         self.signal_buffer.clear()
+        self.avg_signal_buffer.clear()
         self.image_widget.clear(self.current_display_mode)
     
     def _buildPlotArea(self):

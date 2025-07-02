@@ -74,5 +74,5 @@ def processRawSignal(x):
     x = np.array(x)
     x_bb = downconvert(x)
     x_ds = downsample(x_bb)
-    #return x_ds
-    return moving_average(x_ds, 20)
+    return x_ds
+    #return moving_average(x_ds, 20)

@@ -66,8 +66,8 @@ def getSignals(pairs_list):
                 continue
 
             sig, _ = wlbt.GetSignal(pair)
-            sig = np.array(sig)             # shape: (fast_time,)
-            col = sig[:, np.newaxis]        # shape: (fast_time, 1)
+            sig = np.array(sig)             
+            col = sig[:, np.newaxis]        
             signals = col if signals is None else np.concatenate((signals, col), axis=1)
 
         return signals

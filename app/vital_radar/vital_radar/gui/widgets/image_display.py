@@ -59,7 +59,11 @@ class ImageDisplayWidget(QWidget):
                 ax_time = self.figure.add_subplot(1, 2, 1)
                 ax_psd = self.figure.add_subplot(1, 2, 2)
                 self._plotBreathing(ax_time, ax_psd, data)
-                self.ax = ax_time  # store a reference if needed
+            case DisplayMode.TIME:
+                # Create two subplots side by side
+                ax_time = self.figure.add_subplot(1, 2, 1)
+                ax_psd = self.figure.add_subplot(1, 2, 2)
+                self._plotTime(ax_time, ax_psd, data)
 
         self.canvas.draw()
 
@@ -124,12 +128,15 @@ class ImageDisplayWidget(QWidget):
             return
         
         # remove DC content
-        y = data - np.mean(data)
+        #y = data - np.mean(data)
         
         # apply moving average
-        y_smooth = moving_average(y, 20)
-
+        #y_smooth = moving_average(y, 20)
+        y_smooth = data
+        
         # FFT & PSD
+        #P = np.fft.fft(y_smooth)
+        #f = np.fft.fftfreq(len(y_smooth), d=1/fs)
         f, P = getWelch(y_smooth, fs)
         #f, P = getARpsd(y_smooth, fs)
 
@@ -143,6 +150,8 @@ class ImageDisplayWidget(QWidget):
         ax_time.set_xlabel('Sample (k)')
         
         ax_time.set_ylabel('Amplitude')
+        
+        #ax_time.set_ylim(-0.005, 0.005)
 
         # Plot frequency-domain PSD (normalized)
         ax_psd.semilogy(f, P)
@@ -156,3 +165,4 @@ class ImageDisplayWidget(QWidget):
 
         ax_psd.axvline(0.2, color='red', linestyle='--', label='Expected Breathing Range')
         ax_psd.axvline(0.3, color='red', linestyle='--')
+        

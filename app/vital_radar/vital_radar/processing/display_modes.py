@@ -30,7 +30,7 @@ def computePlotData(signal_matrix, display_mode, pairs=None):
         case DisplayMode.DISTANCE:
             # calculate slow time variance
             return slowVar(signal_matrix)
-        
+            
         case DisplayMode.BREATHING:
             # get antenna coordinates
             pos, pairs = antenna_layout.get_channel_positions(pairs)
@@ -38,6 +38,12 @@ def computePlotData(signal_matrix, display_mode, pairs=None):
             # construct array of frequency steps
             freqs = np.linspace(F_START, F_STOP, K) 
             
+            # set your dead‑band threshold (in meters)
+            d_threshold = 0.5   
+
+            # initialize “last updated” distance
+            last_update_d = None
+
             # beamformer given these positions and frequencies
             bf = DelaySumBeamformer(pos, freqs)
             
@@ -45,22 +51,39 @@ def computePlotData(signal_matrix, display_mode, pairs=None):
             var = slowVar(signal_matrix)
             d = distance(var)
             
-            # construct beamforming target from the distance
-            r1 = np.array([0, 0, d])
-            r2 = np.array([5, 5, d])
-            r3 = np.array([5, -5, d])
-            r4 = np.array([-5, 5, d])
-            r5 = np.array([-5, -5, d])
-            
-            # apply beamformer
-            B1 = bf.beamform(signal_matrix, r1)
-            B2 = bf.beamform(signal_matrix, r2)
-            B3 = bf.beamform(signal_matrix, r3)
-            B4 = bf.beamform(signal_matrix, r4)
-            B5 = bf.beamform(signal_matrix, r5)
-            B = B1 + B2 + B3 + B4 + B5
+            # Only when d moves by more than d_threshold from the last_update_d:
+            if (last_update_d is None) or (abs(d - last_update_d) > d_threshold):
+                # construct beamforming target from the distance
+                r1 = np.array([0, 0, d])
+                r2 = np.array([5, 5, d])
+                r3 = np.array([5, -5, d])
+                r4 = np.array([-5, 5, d])
+                r5 = np.array([-5, -5, d])
+                
+                # Compute & transpose steering weights ONCE per target
+                W1 = bf._compute_weights(bf._compute_delays(r1)).T
+                W2 = bf._compute_weights(bf._compute_delays(r2)).T
+                W3 = bf._compute_weights(bf._compute_delays(r3)).T
+                W4 = bf._compute_weights(bf._compute_delays(r4)).T
+                W5 = bf._compute_weights(bf._compute_delays(r5)).T
+
+                # Cache the 5 weight matrices for reuse in subsequent micro‑frames
+                cached_weights = (W1, W2, W3, W4, W5)
+                
+                # Reset your “last updated” distance
+                last_update_d = d
+             
+            W1, W2, W3, W4, W5 = cached_weights
+                
+            # Do only the cheap multiply+sum for each beam
+            B1 = (signal_matrix * W1[None, :, :]).sum(axis=2)
+            B2 = (signal_matrix * W2[None, :, :]).sum(axis=2)
+            B3 = (signal_matrix * W3[None, :, :]).sum(axis=2)
+            B4 = (signal_matrix * W4[None, :, :]).sum(axis=2)
+            B5 = (signal_matrix * W5[None, :, :]).sum(axis=2)
             
             # collapse to slow-time
+            B = B1 + B2 + B3 + B4 + B5
             x = np.abs(B).sum(axis=1)
     
             return x

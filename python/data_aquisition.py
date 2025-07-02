@@ -3,6 +3,10 @@ import time
 
 import WalabotAPI as wlbt
 import numpy as np
+import pandas as pd
+
+import signal_aquisition as sa
+from raw_signal_processing import processRawSignal
 
 
 def init_walabot():
@@ -86,6 +90,28 @@ def save_signals(output_dir, filename, signals, F_st):
     print(f"Saved to {file_path}")
 
 
+def measure(t=30):
+    selected_pairs = [(1,2), (1,6), (1,10), (1,14)]
+    
+    n = np.arange(20)
+    for i in n:
+        signals = sa.getSignals(selected_pairs)
+        
+    fs = sa.trigger_freq
+    M = int(np.ceil(t * fs))
+    signal_buffer = np.zeros((M, 137, len(selected_pairs)))
+    
+    m = np.arange(M)
+    for i in m:
+        signals = sa.getSignals(selected_pairs)
+        signals = processRawSignal(signals)
+        signal_buffer[i, :, :] = signals
+        print(i)
+    print(sa.trigger_freq)
+        
+    return signal_buffer, sa.trigger_freq
+    
+
 N_SLOW_TIME = 200
 N_FAST_TIME = 8192
 OUTPUT_DIR = "C:\\Users\\Michael\\Projects\\Projektseminar_Medizintechnik\\Vital_Radar\\data"
@@ -96,16 +122,31 @@ if __name__ == "__main__":
     # start walabot
     init_walabot()
     
-    # choose antenna pairs (here all)
-    antenna_pairs = wlbt.GetAntennaPairs()
-    pair1 = [antenna_pairs[0], antenna_pairs[2]]
-    
     # actual measurement
-    signals, F_st = get_raw_signals(pair1, N_SLOW_TIME, N_FAST_TIME)
+    signals, fs = measure()
+    
+    # 2) flatten into 2‑D so we can make a DataFrame
+    M, n_ch, n_pairs = signals.shape
+    flat = signals.reshape(M, n_ch * n_pairs)
+
+    # 3) build nice column names
+    pairs    = [f"{a}-{b}" for a,b in [(1,2),(1,6),(1,10),(1,14)]]
+    channels = list(range(n_ch))
+    cols     = pd.MultiIndex.from_product([pairs, channels], names=["pair","channel"])
+    df       = pd.DataFrame(flat, index=np.arange(M), columns=cols)
+    df.index.name = "sample"
+
+    # 4) write out CSV, with fs as the very first line
+    out_path = "signal_buffer_with_fs.csv"
+    with open(out_path, "w") as f:
+        # write a comment‐style header with fs
+        f.write(f"# fs = {fs}\n")
+        # now dump the DataFrame
+        df.to_csv(f)
     
     # stop walabot
     stop_walabot()
     
     # save signals to numpy file
-    save_signals(OUTPUT_DIR, FILENAME, signals, F_st)
+    
     
