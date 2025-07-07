@@ -1,6 +1,3 @@
-import os
-import time
-
 import WalabotAPI as wlbt
 import numpy as np
 import pandas as pd
@@ -43,53 +40,6 @@ def stop_walabot():
     wlbt.Clean()
 
 
-def get_raw_signals(antenna_pairs, N_st, N_ft):
-    # initialize array for saving raw signals 
-    signals = np.zeros((len(antenna_pairs), N_st, N_ft)) # shape: (40, 200, 8192) for all 40 antenna pairs and 200 slow time samples
-
-    # start time for capturing measurement duration
-    start = time.time()
-    index = 1
-    for i in range(0, N_st):
-        
-        wlbt.Trigger()
-        
-        for j, pair in enumerate(antenna_pairs):
-            tx = pair[0]
-            rx = pair[1]
-            
-            amplitudes, time_axis = wlbt.GetSignal(pair)
-
-            signals[j, i, :] = amplitudes
-
-            print(f"Index {index} | Trigger: {i} | Pair {j} | TX: {tx}, RX: {rx} | Samples: {len(amplitudes)}")
-            index +=1
-            
-    # end time for capturing measurment duration
-    end = time.time()
-    
-    # measurement duration
-    t = end - start
-    
-    # slow time sampling frequency
-    F_st = N_st / t
-    
-    # return signals array and slow time sampling frequency
-    return signals, F_st
-
-
-def save_signals(output_dir, filename, signals, F_st):
-    # make sure directory exists
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # create file path
-    file_path = os.path.join(output_dir, f"{filename}.npz")
-
-    np.savez(file_path, signals=signals, F_st=F_st)
-
-    print(f"Saved to {file_path}")
-
-
 def measure(t=30):
     selected_pairs = [(1,2), (1,6), (1,10), (1,14)]
     
@@ -110,12 +60,6 @@ def measure(t=30):
     print(sa.trigger_freq)
         
     return signal_buffer, sa.trigger_freq
-    
-
-N_SLOW_TIME = 200
-N_FAST_TIME = 8192
-OUTPUT_DIR = "C:\\Users\\Michael\\Projects\\Projektseminar_Medizintechnik\\Vital_Radar\\data"
-FILENAME = "radar_data_v2"
 
 
 if __name__ == "__main__":
@@ -125,19 +69,19 @@ if __name__ == "__main__":
     # actual measurement
     signals, fs = measure()
     
-    # 2) flatten into 2‑D so we can make a DataFrame
-    M, n_ch, n_pairs = signals.shape
-    flat = signals.reshape(M, n_ch * n_pairs)
+    # flatten into 2‑D
+    slow_time, range_profile, pairs = signals.shape
+    flat = signals.reshape(slow_time, range_profile * pairs)
 
-    # 3) build nice column names
+    # column names
     pairs    = [f"{a}-{b}" for a,b in [(1,2),(1,6),(1,10),(1,14)]]
-    channels = list(range(n_ch))
-    cols     = pd.MultiIndex.from_product([pairs, channels], names=["pair","channel"])
-    df       = pd.DataFrame(flat, index=np.arange(M), columns=cols)
-    df.index.name = "sample"
+    ranges = list(range(range_profile))
+    cols     = pd.MultiIndex.from_product([pairs, ranges], names=["pair","range"])
+    df       = pd.DataFrame(flat, index=np.arange(slow_time), columns=cols)
+    df.index.name = "time"
 
-    # 4) write out CSV, with fs as the very first line
-    out_path = "signal_buffer_with_fs.csv"
+    # write out CSV, with fs as the very first line
+    out_path = "./data/radar_data_3m.csv"
     with open(out_path, "w") as f:
         # write a comment‐style header with fs
         f.write(f"# fs = {fs}\n")

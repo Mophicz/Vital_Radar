@@ -57,7 +57,7 @@ class MainWindow(QMainWindow):
         
         # radar and buffer
         self.radar_connected = False
-        self.slow_time_N = 100
+        self.slow_time_N = 50
         self.signal_buffer = deque(maxlen=10)
         self.avg_signal_buffer = deque(maxlen=self.slow_time_N)
         

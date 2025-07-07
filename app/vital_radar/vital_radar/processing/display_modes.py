@@ -63,10 +63,10 @@ def computePlotData(signal_matrix, display_mode, pairs=None):
             if (last_update_d is None) or (abs(d - last_update_d) > d_threshold):
                 # construct beamforming target from the distance
                 r1 = np.array([0, 0, d])
-                r2 = np.array([5, 5, d])
-                r3 = np.array([5, -5, d])
-                r4 = np.array([-5, 5, d])
-                r5 = np.array([-5, -5, d])
+                r2 = np.array([0.05, 0.05, d])
+                r3 = np.array([0.05, -0.05, d])
+                r4 = np.array([-0.05, 0.05, d])
+                r5 = np.array([-0.05, -0.05, d])
                 
                 # compute & transpose steering weights per target
                 W1 = bf._compute_weights(bf._compute_delays(r1)).T

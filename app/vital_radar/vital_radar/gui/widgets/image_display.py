@@ -1,7 +1,10 @@
+from collections import deque
+
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy import signal
 
 from vital_radar.processing.distance_estimation import sample2range
 from vital_radar.processing.display_modes import DisplayMode
@@ -36,6 +39,8 @@ class ImageDisplayWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.canvas)
         self.setLayout(layout)
+        
+        self.buffer = deque(maxlen=50)
 
     def updateImage(self, data, display_mode):
         # clear the figure to prepare for new plots
@@ -169,45 +174,50 @@ class ImageDisplayWidget(QWidget):
         if not np.isfinite(fs):
             fs = 1
             
-        if len(data) < 9:
+        if len(data) < 10:
             return
         
-        # remove DC content
-        #y = data - np.mean(data)
+        x = moving_average(data, 30)
         
-        # apply moving average
-        #y_smooth = moving_average(y, 20)
-        y_smooth = data
+        fc = 0.1
+        b, a = signal.butter(2, fc/(fs/2), btype='high')
+        x = signal.filtfilt(b, a, x)
+        
+        fc = 0.6
+        b, a = signal.butter(2, fc/(fs/2), btype='low')
+        x = signal.filtfilt(b, a, x)
+        
+        self.buffer.append(x[-1])
+        buffer = np.array(self.buffer)
         
         # FFT & PSD
-        #P = np.fft.fft(y_smooth)
-        #f = np.fft.fftfreq(len(y_smooth), d=1/fs)
-        f, P = getWelch(y_smooth, fs)
-        #f, P = getARpsd(y_smooth, fs)
+        f, P = getWelch(x, fs)
 
-        k = np.arange(-len(y_smooth), 0, 1)
+        k = np.arange(-len(buffer), 0, 1)
 
         # Plot time-domain signal
-        ax_time.plot(k, y_smooth)
+        ax_time.plot(k/np.ceil(fs), buffer)
         
-        ax_time.set_title('Beamformed Slow-Time Signal')
+        ax_time.set_title('Time Signal')
         
-        ax_time.set_xlabel('Sample (k)')
+        ax_time.set_xlabel('Time (s)')
         
         ax_time.set_ylabel('Amplitude')
         
-        #ax_time.set_ylim(-0.005, 0.005)
+        ax_time.set_ylim(-0.005, 0.005)
 
         # Plot frequency-domain PSD (normalized)
-        ax_psd.semilogy(f, P)
+        ax_psd.plot(f, P)
         
-        ax_psd.set_title('PSD')
+        ax_psd.set_title('Spectrum Estimate')
         
         ax_psd.set_xlabel('Frequency (Hz)')
-        ax_psd.set_xlim(-0.05, 1.55)
+        ax_psd.set_xlim(0, 1)
         
         ax_psd.set_ylabel('Logarithmic PSD')
 
         ax_psd.axvline(0.2, color='red', linestyle='--', label='Expected Breathing Range')
         ax_psd.axvline(0.3, color='red', linestyle='--')
+        
+        ax_psd.legend()
         
