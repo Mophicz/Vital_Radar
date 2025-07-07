@@ -5,12 +5,6 @@ class AntennaLayout:
     """
     Represents the 3D coordinates of Tx and Rx antennas.
 
-    Attributes
-    ----------
-    tx_positions : dict[int, np.ndarray]
-        Maps Tx antenna index (1-based) to its (x, y, z) position in meters.
-    rx_positions : dict[int, np.ndarray]
-        Maps Rx antenna index (1-based) to its (x, y, z) position in meters.
     """
     def __init__(self, tx_positions, rx_positions):
         # Expect dicts mapping 1-based antenna IDs to 3-element tuples or arrays
@@ -20,23 +14,7 @@ class AntennaLayout:
     def get_channel_positions(self, pair_list):
         """
         Return the virtual element positions for the specified tx/rx pairs.
-
-        For each (tx, rx) tuple in pair_list, the virtual channel position is defined as:
-            (tx_pos + rx_pos) / 2
-        or you can choose to treat them separately for bistatic beamforming.
-
-        Parameters
-        ----------
-        pair_list : list[tuple[int, int]]
-            List of (tx, rx) antenna ID pairs to include.
-
-        Returns
-        -------
-        positions : np.ndarray
-            Array of shape (M, 3) where M = len(pair_list),
-            giving the virtual-element positions for each pair in row-major order.
-        pairs : list[tuple[int, int]]
-            Echo of the input list, corresponding to each row in positions.
+        
         """
         if pair_list:
             positions = []
@@ -60,10 +38,8 @@ class AntennaLayout:
             return None
 
 
-# Example: define your antenna grid (in meters)
-# Here you must fill in the actual coordinates for each numbered antenna
-# following your system's datasheet or the diagram.
-# Coordinates are (x, y, z) in meters.
+# define antenna grid 
+# coordinates are (x, y, z) in meters
 POS_TX = {
     1: (-0.03,  0.056, 0.0),
     4: (0.03,  0.056, 0.0),
@@ -85,14 +61,5 @@ POS_RX = {
     16: (0.03,  -0.004, 0.0),
     18: (0.03,  -0.024, 0.0)
 }
-
-# Instantiate a default layout:
-# default_layout = AntennaLayout(ANT_TX, ANT_RX)
-
-# Usage in beamforming:
-# tx_ids = [1,3,5]
-# rx_ids = [2,4]
-# positions, channel_pairs = default_layout.get_channel_positions(tx_ids, rx_ids)
-# # positions is now an array of shape (3*2, 3) for your beamformer
 
 antenna_layout = AntennaLayout(POS_TX, POS_RX)

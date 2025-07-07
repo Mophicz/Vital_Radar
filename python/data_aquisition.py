@@ -146,7 +146,4 @@ if __name__ == "__main__":
     
     # stop walabot
     stop_walabot()
-    
-    # save signals to numpy file
-    
-    
+       

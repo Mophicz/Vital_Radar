@@ -7,10 +7,18 @@ B = 1.7e9
 
 
 def sample2range(n):
+    """
+    Converts sample n to corresponding range in meters given the Bandwidth.
+    
+    """
     return (n*c) / (2*B)
 
 
 def threshhold(x, threshhold):
+    """
+    Simple threshhold that sets every smaller value to zero.
+    
+    """
     if x is not None:
         threshold_value = (threshhold / 100) * np.max(x)
         
@@ -43,6 +51,10 @@ def slowVar(signal_matrix):
 
 
 def distance(var):
+    """
+    Returns the range of the maximum value.
+    
+    """
     # find the sample (frequency) bin with the highest variance
     idx = np.argmax(var)
         

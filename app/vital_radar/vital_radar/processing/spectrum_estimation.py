@@ -3,7 +3,11 @@ from scipy.signal import butter, filtfilt, welch, freqz
 from statsmodels.regression.linear_model import yule_walker
 
 
-def getWelch(x, fs, nfft=1024):
+def getWelch(x, fs, nfft=512):
+    """
+    Estimate the PSD of x using Welchs method.
+
+    """
     default_nperseg = 128
     default_noverlap = 64
     
@@ -23,13 +27,10 @@ def getWelch(x, fs, nfft=1024):
     return f, P
 
 
-def getARpsd(x, fs, order=8, nfft=1024):
+def getARpsd(x, fs, order=8, nfft=512):
     """
     Estimate the PSD of x using an AR fit of given order.
-    
-    Returns (f, Pxx):
-      - f: frequencies [Hz], from 0 to fs/2
-      - Pxx: power spectral density
+
     """
     # 1) Fit AR model via Yule–Walker
     #    rho: AR coefficients (without the leading 1)
