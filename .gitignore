@@ -1,3 +1,5 @@
 data/
 app/build
 app/dist
+*.mp4
+*.png

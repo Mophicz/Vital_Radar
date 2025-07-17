@@ -130,7 +130,7 @@ def visualize_grid(points, fov_elevation=None, fov_azimuth=None, max_distance=No
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
-    ax.set_title('3D Grid Points in Radar-Aligned Coordinate System')
+    ax.set_title('Beamforming Targets')
 
     # Set axis limits based on radar field of view (FOV) and range
     if fov_elevation is not None:
@@ -204,7 +204,7 @@ def plot(x, fs):
     
     plt.show()
 
-
+"""
 if __name__ == "__main__":
     fs, data = readData("./data/radar_data_3m.csv")
     
@@ -218,6 +218,27 @@ if __name__ == "__main__":
     r = np.array([0,0,d])
     
     #visualize_grid(points, fov_elevation=(-10, 10), fov_azimuth=(-10, 10), max_distance=10)
+    
+    #x = processDataNoBeamformer(data, idx)
+    #x = processData1Point(data, r)
+    x = processData(data, points)
+    plot(x, fs)
+"""   
+
+if __name__ == "__main__":
+    fs, data = readData("./data/radar_data_3m.csv")
+    
+    # estimate distance using variance method
+    var = slowVar(data)
+    d = distance(var)
+    idx = np.argmax(var)
+    
+    # Define grid
+    points = generate_grid(d, 0.5, 5)
+    #points = np.vstack([(0,0,d),(5,5,d),(-5,5,d),(5,-5,d),(-5,-5,d)])
+    r = np.array([0,0,d])
+    
+    visualize_grid(points, fov_elevation=(-10, 10), fov_azimuth=(-10, 10), max_distance=10)
     
     #x = processDataNoBeamformer(data, idx)
     #x = processData1Point(data, r)

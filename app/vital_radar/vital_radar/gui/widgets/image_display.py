@@ -117,7 +117,7 @@ class ImageDisplayWidget(QWidget):
         # round up max value
         end = int(np.ceil(x.max()))
         # ticks
-        ax.set_xticks(np.arange(end))
+        ax.set_xticks(np.arange(0, end, 10))
         # limits
         ax.set_xlim(0, end)
         
@@ -204,7 +204,7 @@ class ImageDisplayWidget(QWidget):
         
         ax_time.set_ylabel('Amplitude')
         
-        ax_time.set_ylim(-0.005, 0.005)
+        ax_time.set_ylim(-0.003, 0.003)
 
         # Plot frequency-domain PSD (normalized)
         ax_psd.plot(f, P)
@@ -215,9 +215,28 @@ class ImageDisplayWidget(QWidget):
         ax_psd.set_xlim(0, 1)
         
         ax_psd.set_ylabel('Logarithmic PSD')
+        ax_psd.set_ylim(0, 5e-5)
 
         ax_psd.axvline(0.2, color='red', linestyle='--', label='Expected Breathing Range')
         ax_psd.axvline(0.3, color='red', linestyle='--')
         
         ax_psd.legend()
+
+        peak_idx = np.argmax(P)
+
+        peak_freq = f[peak_idx]
+        peak_psd  = P[peak_idx]
+
+        # 2) Plot the red dot at that peak
+        ax_psd.plot(peak_freq, peak_psd, 'ro', label='Global Peak')
+
+        # 3) Annotate
+        ax_psd.text(
+            peak_freq, peak_psd,
+            f'{60*peak_freq:.1f}/min',
+            color='red',
+            fontsize=12,
+            ha='center',
+            va='bottom'
+        )
         
