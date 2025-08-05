@@ -233,9 +233,8 @@ if __name__ == "__main__":
   # Plot v vs. index
   plt.figure(figsize=(6, 4))
   plt.plot(v)
-  plt.title("Variance of downsampled baseband (first 45 slow‐time samples)")
-  plt.xlabel("Downsampled fast‐time index")
-  plt.ylabel("Variance")
-  plt.tight_layout()
-  plt.savefig("variance_plot_python.png", dpi=300)
-  # plt.show()
+  plt.xlabel("fast-time-sample n", fontsize=14)
+  plt.ylabel("Varianz", fontsize=14)
+  plt.tight_layout(pad=0.1)  # ensure tight layout with minimal padding
+  plt.savefig("variance_plot_python2.pdf", format='pdf', bbox_inches='tight')  # vector format, tight bounding box
+  plt.show()

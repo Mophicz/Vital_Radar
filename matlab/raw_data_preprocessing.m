@@ -37,20 +37,18 @@ end
 
 save('data/radar_data.mat', 'allData');
 
-
-%% Example: downsampling fast time signal with plots
+%%
 close all;
 clear;
 clc;
 
-load("data\radar_data.mat");
+load("..\data\radar_data.mat");
 
 Fs = 102.4e9;              
 Fc = 7.15e9;                        
 B = 1.7e9;   
 
-% Extract raw signal and parameters from struct
-x = allData(1).data(:,1);                      
+x = allData(1).data(:,1);
 
 N = length(x);
 n = 1:N;
@@ -79,65 +77,76 @@ x_bb_downsampled = ifft(Xbb_downsampled) .* Nds/N;
 f = -(Fs/2):Fs/(N-1):(Fs/2);
 f = f .* 1/1e9;
 
-% Plotting
-figure;
-t = tiledlayout(2,3);
+% Extract raw signal and parameters from struct
+x = allData(1).data(:,1);   
+% Helper function to export a figure tightly as vector PDF
+function export_tight_vector(fig, filename)
+    tightfig(fig);  % Requires tightfig.m in MATLAB path
+    exportgraphics(fig, filename, ...
+        'ContentType', 'vector', ...
+        'BackgroundColor', 'none');
+end
 
-nexttile
+% === Plot 1: Raw signal ===
+fig1 = figure;
 plot(x)
 xlim([1 8200])
-title('Raw (tx1, rx1)')
-xlabel('Fast Time Sample n')
-ylabel('s_l(n)')
+xlabel('fast-time-sample n', 'FontSize', 18)
+ylabel('s_l(n)', 'FontSize', 18)
+set(fig1, 'Units', 'inches', 'Position', [1 1 6 4]);
+export_tight_vector(fig1, 'raw_signal.pdf');
 
-nexttile
+% === Plot 2: Baseband signal ===
+fig2 = figure;
 plot(real(x_bb))
 hold on
 plot(imag(x_bb))
 xlim([1 8200])
-title('Baseband (tx1, rx1)')
-xlabel('Fast Time Sample n')
-ylabel('s_{l}(n)')
-legend('Real', 'Imaginary')
+xlabel('fast-time-sample n', 'FontSize', 18)
+ylabel('s_{l}(n)', 'FontSize', 18)
+legend('Reell', 'Imaginär')
+set(fig2, 'Units', 'inches', 'Position', [1 1 6 4]);
+export_tight_vector(fig2, 'baseband_signal.pdf');
 
-nexttile
+% === Plot 3: Downsampled baseband ===
+fig3 = figure;
 plot(real(x_bb_downsampled))
 hold on
 plot(imag(x_bb_downsampled))
 xlim([1 137])
-title('Downsampled (tx1, rx1)')
-xlabel('Fast Time Sample n')
-ylabel('s_{l}(n)')
-legend('Real', 'Imaginary')
+xlabel('fast-time-sample n', 'FontSize', 18)
+ylabel('s_{l}(n)', 'FontSize', 18)
+legend('Reell', 'Imaginär')
+set(fig3, 'Units', 'inches', 'Position', [1 1 6 4]);
+export_tight_vector(fig3, 'downsampled_signal.pdf');
 
-nexttile
-plot(f, 20*log(Pxx))
-hold on
+% === Plot 4: PSD of raw signal ===
+fig4 = figure;
+plot(f, 20*log10(Pxx))
 xlim([0 10])
-xlabel('Frequency [GHz]')
-ylabel('20 log(P_{ss}(e^{j\omega}))')
+xlabel('Frequenz [GHz]', 'FontSize', 18)
+ylabel('20 log(P_{ss}(e^{j\omega}))', 'FontSize', 18)
+set(fig4, 'Units', 'inches', 'Position', [1 1 6 4]);
+export_tight_vector(fig4, 'psd_raw.pdf');
 
-nexttile
-plot(f, 20*log(Pbb))
+% === Plot 5: PSD of baseband signal ===
+fig5 = figure;
+plot(f, 20*log10(Pbb))
 xlim([-5 5])
-xlabel('Frequency [GHz]')
-ylabel('20 log(P_{ss}(e^{j\omega}))')
+xlabel('Frequenz [GHz]', 'FontSize', 18)
+ylabel('20 log(P_{ss}(e^{j\omega}))', 'FontSize', 18)
+set(fig5, 'Units', 'inches', 'Position', [1 1 6 4]);
+export_tight_vector(fig5, 'psd_baseband.pdf');
 
-nexttile
-plot(f(N/2+1-Nds/2:N/2+1+Nds/2), 20*log(Pbb_downsampled))
+% === Plot 6: PSD of downsampled baseband ===
+fig6 = figure;
+plot(f(N/2+1-Nds/2:N/2+1+Nds/2), 20*log10(Pbb_downsampled))
 xlim([-5 5])
-xlabel('Frequency [GHz]')
-ylabel('20 log(P_{ss}(e^{j\omega}))')
+xlabel('Frequenz [GHz]', 'FontSize', 18)
+ylabel('20 log(P_{ss}(e^{j\omega}))', 'FontSize', 18)
+set(fig6, 'Units', 'inches', 'Position', [1 1 6 4]);
+export_tight_vector(fig6, 'psd_downsampled.pdf');
 
-% Adjust the layout to minimize extra space
-t.TileSpacing = 'compact';
-t.Padding = 'compact';
-
-% Define figure size
-set(gcf, 'Units', 'inches', 'Position', [1 1 12 8]);
-
-% Export the figure with tight layout
-exportgraphics(gcf, 'FT_downsampling.png', 'Resolution', 300);
 
 %% SVD decluttering
 close all;
